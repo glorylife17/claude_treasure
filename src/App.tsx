@@ -45,6 +45,7 @@ export default function App() {
         if (box.id === boxId && !box.isOpen) {
           const newScore = box.hasTreasure ? score + 100 : score - 50;
           setScore(newScore);
+          new Audio(box.hasTreasure ? chestOpenSound : evilLaughSound).play();
           return { ...box, isOpen: true };
         }
         return box;
