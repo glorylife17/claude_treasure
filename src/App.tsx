@@ -4,6 +4,7 @@ import { Button } from './components/ui/button';
 import closedChest from './assets/treasure_closed.png';
 import treasureChest from './assets/treasure_opened.png';
 import skeletonChest from './assets/treasure_opened_skeleton.png';
+import keyCursor from './assets/key.png';
 import chestOpenSound from './audios/chest_open.mp3';
 import evilLaughSound from './audios/chest_open_with_evil_laugh.mp3';
 
@@ -85,6 +86,19 @@ export default function App() {
             ${score}
           </span>
         </div>
+        {boxes.some(box => box.isOpen) && (
+          <div
+            className={`mt-2 text-center text-lg ${
+              score > 0
+                ? 'text-green-600'
+                : score < 0
+                ? 'text-red-600'
+                : 'text-gray-600'
+            }`}
+          >
+            {score > 0 ? 'You Win' : score < 0 ? 'You Lose' : 'You Tie'}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
@@ -92,6 +106,7 @@ export default function App() {
               <motion.div
                 key={box.id}
                 className="flex flex-col items-center cursor-pointer"
+                style={box.isOpen ? undefined : { cursor: `url(${keyCursor}), pointer` }}
                 whileHover={{ scale: box.isOpen ? 1 : 1.05 }}
                 whileTap={{ scale: box.isOpen ? 1 : 0.95 }}
                 onClick={() => openBox(box.id)}
