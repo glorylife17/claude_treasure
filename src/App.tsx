@@ -1,12 +1,22 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Button } from './components/ui/button';
+import AuthModal from './components/AuthModal';
 import closedChest from './assets/treasure_closed.png';
 import treasureChest from './assets/treasure_opened.png';
 import skeletonChest from './assets/treasure_opened_skeleton.png';
 import keyCursor from './assets/key.png';
 import chestOpenSound from './audios/chest_open.mp3';
 import evilLaughSound from './audios/chest_open_with_evil_laugh.mp3';
+import {
+  getToken,
+  setToken as persistToken,
+  clearToken,
+  getMyStats,
+  submitRoundResult,
+  type AuthUser,
+  type Stats,
+} from './lib/api';
 
 interface Box {
   id: number;
@@ -18,6 +28,34 @@ export default function App() {
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [score, setScore] = useState(0);
   const [gameEnded, setGameEnded] = useState(false);
+
+  const [token, setToken] = useState<string | null>(() => getToken());
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  // Hydrate logged-in state from a stored token, if any
+  useEffect(() => {
+    if (!token) return;
+    getMyStats()
+      .then(setStats)
+      .catch(() => {
+        clearToken();
+        setToken(null);
+        setStats(null);
+      });
+  }, [token]);
+
+  const handleAuthSuccess = (newToken: string, _newUser: AuthUser) => {
+    persistToken(newToken);
+    setToken(newToken);
+    getMyStats().then(setStats).catch(() => {});
+  };
+
+  const handleLogout = () => {
+    clearToken();
+    setToken(null);
+    setStats(null);
+  };
 
   const initializeGame = () => {
     // Randomly assign treasure to one box
@@ -42,9 +80,11 @@ export default function App() {
     if (gameEnded) return;
     
     setBoxes(prevBoxes => {
+      let resultingScore = score;
       const updatedBoxes = prevBoxes.map(box => {
         if (box.id === boxId && !box.isOpen) {
-          const newScore = box.hasTreasure ? score + 100 : score - 50;
+          const newScore = box.hasTreasure ? score + 100 : score - 100;
+          resultingScore = newScore;
           setScore(newScore);
           new Audio(box.hasTreasure ? chestOpenSound : evilLaughSound).play();
           return { ...box, isOpen: true };
@@ -57,8 +97,13 @@ export default function App() {
       const allOpened = updatedBoxes.every(box => box.isOpen);
       if (treasureFound || allOpened) {
         setGameEnded(true);
+        if (token) {
+          submitRoundResult(resultingScore)
+            .then(setStats)
+            .catch(() => { /* non-fatal: stats will just be stale until next successful call */ });
+        }
       }
-      
+
       return updatedBoxes;
     });
   };
@@ -68,14 +113,41 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50 to-amber-100 flex flex-col items-center justify-center p-8">
+    <div className="relative min-h-screen bg-gradient-to-b from-amber-50 to-amber-100 flex flex-col items-center justify-center p-8">
+      <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
+        {token && stats ? (
+          <div className="flex flex-col items-end gap-2 bg-amber-200/80 backdrop-blur-sm rounded-lg shadow-lg border-2 border-amber-400 p-3 text-sm text-amber-900">
+            <span>Logged in as <strong>{stats.username}</strong></span>
+            <span>
+              Wins: {stats.wins} · Ties: {stats.ties} · Losses: {stats.losses}
+            </span>
+            <span>
+              Best: ${stats.bestScore} · Total: ${stats.totalScore}
+            </span>
+            <Button onClick={handleLogout} className="bg-amber-600 hover:bg-amber-700 text-white">
+              Log Out
+            </Button>
+          </div>
+        ) : (
+          <Button onClick={() => setAuthModalOpen(true)} className="bg-amber-600 hover:bg-amber-700 text-white">
+            Log In
+          </Button>
+        )}
+      </div>
+
+      <AuthModal
+        open={authModalOpen}
+        onOpenChange={setAuthModalOpen}
+        onAuthSuccess={handleAuthSuccess}
+      />
+
       <div className="text-center mb-8">
         <h1 className="text-4xl mb-4 text-amber-900">🏴‍☠️ Treasure Hunt Game 🏴‍☠️</h1>
         <p className="text-amber-800 mb-4">
           Click on the treasure chests to discover what's inside!
         </p>
         <p className="text-amber-700 text-sm">
-          💰 Treasure: +$100 | 💀 Skeleton: -$50
+          💰 Treasure: +$100 | 💀 Skeleton: -$100
         </p>
       </div>
 
@@ -163,7 +235,7 @@ export default function App() {
                           : 'bg-red-100 text-red-800 border border-red-300'
                       }`}
                     >
-                      {box.hasTreasure ? '+$100' : '-$50'}
+                      {box.hasTreasure ? '+$100' : '-$100'}
                     </motion.div>
                   ) : (
                     <div className="text-amber-700 p-2">
