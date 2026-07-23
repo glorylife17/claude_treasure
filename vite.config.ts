@@ -49,6 +49,7 @@
         '@': path.resolve(__dirname, './src'),
       },
     },
+    base: process.env.GH_PAGES ? '/claude_treasure/' : '/',
     build: {
       target: 'esnext',
       outDir: 'build',
