@@ -145,3 +145,6 @@ build/
 # Local SQLite database
 server/*.sqlite
 .vercel
+
+# Temporary images (e.g. screenshots pasted during development)
+tmpImage/
