@@ -144,3 +144,4 @@ build/
 
 # Local SQLite database
 server/*.sqlite
+.vercel
